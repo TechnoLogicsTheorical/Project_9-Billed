@@ -3,12 +3,17 @@
  */
 
 import { screen, waitFor } from '@testing-library/dom';
+import '@testing-library/jest-dom/extend-expect.js';
+
 import BillsUI from '../views/BillsUI.js';
 import { bills } from '../fixtures/bills.js';
 import { ROUTES_PATH } from '../constants/routes.js';
 import { localStorageMock } from '../__mocks__/localStorage.js';
 
 import router from '../app/Router.js';
+import Bills from '../containers/Bills.js';
+import { ROUTES } from '../constants/routes.js';
+import userEvent from '@testing-library/user-event';
 
 describe('Given I am connected as an employee', () => {
     describe('When I am on Bills Page', () => {
@@ -36,4 +41,79 @@ describe('Given I am connected as an employee', () => {
             expect(dates).toEqual(datesSorted);
         });
     });
+
+    describe('When I am on Bils page and I click to New Bill button', () => {
+        test('Then, I should see the New Bill page', () => {
+
+            Object.defineProperty(window, 'localStorage', { value: localStorageMock });
+            window.localStorage.setItem('user', JSON.stringify({
+                type: 'Employee',
+                email: 'e@e',
+            }));
+
+            const onNavigate = (pathname) => {
+                document.body.innerHTML = ROUTES({pathname});
+            }
+
+            document.body.innerHTML = BillsUI({ data: bills });
+            const bill = new Bills({
+                document,
+                onNavigate,
+                store: null,
+                localStorage: window.localStorage,
+            })
+
+            const buttonNewBill = screen.getByTestId('btn-new-bill');
+            expect(buttonNewBill).toBeTruthy();
+
+            const handleClickNewBill = jest.fn(() => bill.handleClickNewBill());
+            buttonNewBill.addEventListener('click', handleClickNewBill);
+            userEvent.click(buttonNewBill);
+
+            expect(handleClickNewBill).toHaveBeenCalled();
+
+            expect(screen.getByText('Envoyer une note de frais')).toBeTruthy();
+        })
+    })
+
+    describe('When I am on Bills page and I click to an icon Eye', () => {
+        test('Then, I should be render details bills', () => {
+
+            Object.defineProperty(window, 'localStorage', { value: localStorageMock });
+            window.localStorage.setItem('user', JSON.stringify({
+                type: 'Employee',
+                email: 'e@e',
+            }));
+
+            const onNavigate = (pathname) => {
+                document.body.innerHTML = ROUTES({pathname});
+            };
+
+            document.body.innerHTML = BillsUI({ data: bills });
+            const bill = new Bills({
+                document,
+                onNavigate,
+                store: null,
+                localStorage: window.localStorage,
+            })
+
+            // Implémentation d'une fonction simulée pour Jquery
+            // sinon une erreur survient : TypeError: $(...).modal is not a function
+            $.fn.modal = jest.fn();
+            // Par rapport à l'événement de click : $('#modaleFile').modal('show') dans le container/bills.js
+            const iconEyeBillElements = screen.getAllByTestId('icon-eye');
+
+            const handleClickEyeIcon = jest.fn((icon) => bill.handleClickIconEye(icon));
+            iconEyeBillElements.forEach((icon) => {
+                icon.addEventListener('click', handleClickEyeIcon(icon))
+            })
+
+            const firstShowBillBtn = iconEyeBillElements[0];
+            userEvent.click(firstShowBillBtn)
+            expect(handleClickEyeIcon).toHaveBeenCalled();
+
+            const modale = screen.getByText("Justificatif");
+            expect(modale).toBeTruthy();
+        })
+    })
 });
